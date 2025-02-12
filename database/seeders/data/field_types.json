@@ -1,0 +1,37 @@
+[
+    {
+        "name": "Text",
+        "icon" : "/img/fields icon/ctb_text.svg",
+        "description" : "Small or long  text like title or description"
+    },
+    {
+        "name" : "Date",
+        "icon" :"/img/fields icon/ctb_date.svg",
+        "description" : "Date time"
+    },
+    {
+        "name" : "Number",
+        "icon" : "/img/fields icon/ctb_number.svg",
+        "description" : "Numbers (integer, float, decimal)"
+    },
+    {
+        "name" : "Boolean",
+        "icon" : "/img/fields icon/ctb_boolean.svg",
+        "description" : "Yes or no, 1 or 0, true or false"
+    },
+    {
+        "name" : "Email",
+        "icon" :"/img/fields icon/ctb_email.svg",
+        "description":"Email field with validation  format"
+    },
+    {
+        "name" : "Image",
+        "icon":"/img/fields icon/ctb_media.svg",
+        "description":"File images"
+    },
+    {
+        "name" : "Rich Text (Blocks)",
+        "icon"  : "/img/fields icon/ctb_richtextblocks.svg",
+        "description": "The new  JSON-based rich text editor"
+    }
+]
