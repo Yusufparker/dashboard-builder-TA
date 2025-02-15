@@ -37,10 +37,13 @@ class DashboardController extends Controller
         }
         $project_entity = ProjectEntity::where('project_id', $project->id)->get();
         $widgets = DashboardWidget::where('project_id', $project->id)->first();
-
-        if ($widgets) {
-            $widgets->items = json_decode($widgets->items, true);
+        if (!$widgets) {
+            $widgets = DashboardWidget::create([
+                'project_id' => $project->id,
+                'items' => json_encode([]) 
+            ]);
         }
+        $widgets->items = json_decode($widgets->items, true);
 
         
         return Inertia::render('EditDashboard', [
