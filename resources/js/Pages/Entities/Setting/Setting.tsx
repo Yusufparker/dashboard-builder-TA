@@ -2,8 +2,15 @@ import EntitySettingForm from "@/Components/dashboard/entity/setting/EntitySetti
 import DashboardLayout from "@/Layouts/DashboardLayout";
 import { Link, usePage } from "@inertiajs/react";
 import { MoveLeft } from "lucide-react";
+export type SettingTytpe = {
+    id : number;
+    is_api_enabled : number,
+    project_entity_id : number;
+    endpoint : string
+}
 
-const Setting = () => {
+
+const Setting = ({setting}  : {setting : SettingTytpe}) => {
     const project_uuid = usePage().props.current_project.uuid;
     return (
         <DashboardLayout>
@@ -19,7 +26,7 @@ const Setting = () => {
                     <h1 className="text-2xl font-bold">Entity Setting</h1>
                     
                 </div>
-                <EntitySettingForm/>
+                <EntitySettingForm setting={setting} />
             </div>
         </DashboardLayout>
     );

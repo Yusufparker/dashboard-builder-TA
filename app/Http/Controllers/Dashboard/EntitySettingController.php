@@ -14,11 +14,13 @@ class EntitySettingController extends Controller
         $entity = ProjectEntity::where('uuid', $entity_uuid)->firstOrfail();
         $setting = EntitySetting::where('project_entity_id', $entity->id)->first();
 
-        return response()->json([
-            'status' => 'succcess',
+        // return response()->json([
+        //     'status' => 'succcess',
+        //     'setting' => $setting
+        // ]);
+
+        return Inertia::render('Entities/Setting/Setting',[
             'setting' => $setting
         ]);
-
-        return Inertia::render('Entities/Setting/Setting');
     }
 }
