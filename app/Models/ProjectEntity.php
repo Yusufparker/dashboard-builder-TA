@@ -19,4 +19,9 @@ class ProjectEntity extends Model
     public function values(){
         return $this->hasMany(EntityFieldValue::class);
     }
+
+    public function setting(){
+        return $this->hasOne(EntitySetting::class);
+    }
+
 }

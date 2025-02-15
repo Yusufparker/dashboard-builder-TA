@@ -15,4 +15,8 @@ class EntityFieldValue extends Model
     public function  detailValues(){
         return $this->hasMany(DetailValue::class);
     }
+
+    public function user(){
+        return $this->belongsTo(User::class);
+    }
 }

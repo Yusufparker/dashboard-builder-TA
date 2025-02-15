@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\Dashboard\EntityController;
+use App\Http\Controllers\Dashboard\EntitySettingController;
 use App\Http\Controllers\Dashboard\WidgetController;
 use App\Http\Controllers\FieldTypeController;
 use App\Http\Controllers\HomeController;
@@ -31,14 +32,21 @@ Route::prefix('/p')->middleware(['auth', 'load.current_project', 'own.project'])
         Route::get('/', [EntityController::class, 'index']);
         Route::get('/new', [EntityController::class, 'create']);
         Route::post('/store', [EntityController::class, 'store']);
+        Route::prefix('setting/{entity_uuid}')->group(function(){
+            Route::get('/', [EntitySettingController::class, 'index']);
+        });
     });
     Route::prefix('{uuid}/table/{entity_uuid}')->group(function(){
         Route::get('/', [EntityController::class, 'entityTable']);
         Route::get('new', [EntityController::class, 'addNewValue']);
     });
 
+
 });
 
+Route::prefix('api')->group(function(){
+    Route::get('{endpoint}', [EntityController::class, 'getEntityValueAPI']);
+});
 Route::post('/store-value', [EntityController::class, 'storeValue'])->middleware('auth');
 
 

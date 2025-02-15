@@ -11,6 +11,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DetailValue;
 use App\Models\EntityField;
 use App\Models\EntityFieldValue;
+use App\Models\EntitySetting;
 use Illuminate\Http\UploadedFile;
 use App\Models\Project;
 use Illuminate\Support\Facades\Auth;
@@ -45,16 +46,22 @@ class EntityController extends Controller
                 throw new \Exception("The entity name '$entity_name' is already in use for this project.");
             }
 
+            if (empty($fields) || !is_array($fields)) {
+                throw new \Exception("Fields cannot be empty. Please provide at least one field.");
+            }
+
             $entity = ProjectEntity::create([
                 'uuid' => Str::uuid(),
                 'name' => strtolower($entity_name),
                 'project_id' => $project->id
             ]);
 
-
-            if (empty($fields) || !is_array($fields)) {
-                throw new \Exception("Fields cannot be empty. Please provide at least one field.");
-            }
+            $setting = EntitySetting::create([
+                'project_entity_id' => $entity->id,
+                'endpoint' => $entity->uuid,
+                'is_api_enabled' => false
+            ]);
+            
             foreach ($fields as $field) {
                 EntityField::create([
                     'project_entity_id' => $entity->id,
@@ -261,6 +268,49 @@ class EntityController extends Controller
         } catch (\Throwable $th) {
             return response()->json(['error' => $th->getMessage()], 500);
         }
+    }
+    
+
+    public function getEntityValueAPI($endpoint){
+        $setting = EntitySetting::where('endpoint', $endpoint)->firstOrFail();
+        if($setting->is_api_enabled == 0){
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'unauthorize'
+            ]);
+        }
+
+        $limit = request('limit', 5);
+        $entity_detail = ProjectEntity::where('id', $setting->project_entity_id)
+            ->with(['fields','setting'])
+            ->firstOrFail();
+    
+
+        $entity_values = EntityFieldValue::where('project_entity_id', $entity_detail->id)
+            ->with(['detailValues.field.type', 'user'])
+            ->paginate($limit);
+
+        $formatted_values = $entity_values->through(function ($item) {
+            $fields = [
+                'id' => $item->id,
+                'user' =>  [
+                    'id' => $item->user->id,
+                    'name' => $item->user->name,
+                ],
+            ];
+            foreach ($item->detailValues as $detail) {
+                $field = $detail->field;
+                if ($field) {
+                    $fields[$field->title] = $field->type->name == 'Boolean' ?  (bool) $detail->value :  $detail->value;
+                }
+            }
+
+            $fields['created_at'] = $item->created_at;
+
+            return $fields;
+        });
+
+        return response()->json($formatted_values);
     }
 
 
