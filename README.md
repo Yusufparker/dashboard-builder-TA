@@ -6,17 +6,19 @@
   <h3 align="center">Dashboard Builder</h3>
 </div>
 
-<img  src="https://xokfyywqduhtltwyclph.supabase.co/storage/v1/object/public/yusufparker/yusuf/Screenshot%202025-02-15%20105337.png" >
-
 <p style="font-size : 14px">
 Dashboard Builder adalah platform yang memungkinkan pengguna untuk membuat dan menyesuaikan dashboard interaktif dengan mudah.
 </p>
 
-<img  src="https://xokfyywqduhtltwyclph.supabase.co/storage/v1/object/public/yusufparker/yusuf/Screenshot%202025-02-15%20104758.png" >
+<img  src="https://xokfyywqduhtltwyclph.supabase.co/storage/v1/object/public/yusufparker/yusuf/2025-02-15%2020-17-57.gif" >
+
+
+
+<img  src="https://xokfyywqduhtltwyclph.supabase.co/storage/v1/object/public/yusufparker/yusuf/2025-02-15%2020-09-42.gif" >
 <br>
 <br>
 
-<img  src="https://xokfyywqduhtltwyclph.supabase.co/storage/v1/object/public/yusufparker/yusuf/Screenshot%202025-02-15%20104857.png" >
+<img  src="https://xokfyywqduhtltwyclph.supabase.co/storage/v1/object/public/yusufparker/yusuf/2025-02-15%2020-13-04.gif" >
 
 ## ✨ Built With
 
