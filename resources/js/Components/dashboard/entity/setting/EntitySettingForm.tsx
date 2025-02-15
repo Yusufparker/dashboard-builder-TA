@@ -6,8 +6,18 @@ import { Label } from "@/Components/ui/label";
 import { SettingTytpe } from "@/Pages/Entities/Setting/Setting";
 import { Clipboard } from "lucide-react";
 import { Button } from "@/Components/ui/button";
+import axios from "axios";
+import { usePage } from "@inertiajs/react";
+import toast from "react-hot-toast";
+
+type DataPostType = {
+    endpoint : string;
+    is_api_enabled : boolean;
+}
 
 const EntitySettingForm = ({ setting }: { setting: SettingTytpe }) => {
+    const project_uuid = usePage().props.current_project.uuid;
+
     const { register, handleSubmit, watch, setValue } = useForm({
         defaultValues: {
             is_api_enabled: Boolean(setting.is_api_enabled),
@@ -17,7 +27,8 @@ const EntitySettingForm = ({ setting }: { setting: SettingTytpe }) => {
 
     const isApiEnabled = watch("is_api_enabled");
     const baseUrl = "http://localhost:8000/api/";
-    const [copied, setCopied] = useState(false);
+    const [copied, setCopied] = useState<boolean>(false);
+    const [loading, setLoading] = useState<boolean>(false)
 
     const copyToClipboard = () => {
         const fullUrl = `${baseUrl}${watch("endpoint")}`;
@@ -26,9 +37,32 @@ const EntitySettingForm = ({ setting }: { setting: SettingTytpe }) => {
         setTimeout(() => setCopied(false), 2000);
     };
 
-    const onSubmit = (data: any) => {
-        console.log("Form Data:", data);
+    const onSubmit = async (data: DataPostType) => {
+        await saveSetting(data)
     };
+
+
+    const saveSetting = async (data : DataPostType) =>{
+        try {
+            setLoading(true)
+            const response = await axios.post(`/p/${project_uuid}/entities/setting/store/${setting.id}`,{
+                is_api_enabled : data.is_api_enabled,
+                endpoint : data.endpoint
+            });
+            if(response.data.status == 'success'){
+                toast.success(response.data.message)
+                window.location.reload()
+            }else{
+                toast.error(response.data.message)
+            }
+            setLoading(false)
+            
+        } catch (error) {
+            toast.error('Failed')
+            setLoading(false)
+            
+        }
+    }
 
     return (
         <form
@@ -81,6 +115,7 @@ const EntitySettingForm = ({ setting }: { setting: SettingTytpe }) => {
             <Button
                 type="submit"
                 size="sm"
+                disabled={loading}
             >
                 Save Settings
             </Button>

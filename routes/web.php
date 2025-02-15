@@ -32,8 +32,9 @@ Route::prefix('/p')->middleware(['auth', 'load.current_project', 'own.project'])
         Route::get('/', [EntityController::class, 'index']);
         Route::get('/new', [EntityController::class, 'create']);
         Route::post('/store', [EntityController::class, 'store']);
-        Route::prefix('setting/{entity_uuid}')->group(function(){
-            Route::get('/', [EntitySettingController::class, 'index']);
+        Route::prefix('setting')->group(function(){
+            Route::get('{entity_uuid}', [EntitySettingController::class, 'index']);
+            Route::post('store/{setting_id}', [EntitySettingController::class, 'store']);
         });
     });
     Route::prefix('{uuid}/table/{entity_uuid}')->group(function(){

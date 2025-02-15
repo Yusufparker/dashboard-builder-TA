@@ -98,9 +98,8 @@ class EntityController extends Controller
 
         $entity_values = EntityFieldValue::where('project_entity_id', $entity_detail->id)
             ->with('detailValues.field.type')
-            ->paginate(5); // Tambahkan paginate
+            ->paginate(5); 
 
-        // Ubah data tetapi tetap menjaga struktur paginasi
         $formatted_values = $entity_values->through(function ($item) {
             $fields = [];
             foreach ($item->detailValues as $detail) {
@@ -205,7 +204,7 @@ class EntityController extends Controller
     private function uploadImage($image)
     {
         $path = $image->store('images', 'public');
-        return env('APP_URL') . '/storage/' . $path;
+        return config('app.url') . '/storage/' . $path;
     }
 
 
