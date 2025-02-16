@@ -12,6 +12,7 @@ const DashboardLayout = ({
 }: PropsWithChildren<{ header?: ReactNode }>) => {
     const [isMobileSidebarOpen, setMobileSidebarOpen] = useState(false);
     const { current_project } = usePage().props;
+    const user = usePage().props.auth.user;
     
 
     return (
@@ -33,19 +34,34 @@ const DashboardLayout = ({
                                 </Link>
                             </li>
                         </ul>
-                        <ul>
-                            <li className="p-2">
-                                <Link
-                                    href={`/p/${current_project.uuid}/entities`}
-                                    className="hover:bg-[#E6E5FF]  rounded-[5px] py-3 px-5 text-sm flex items-center gap-4"
-                                >
-                                    <div className="bg-primary p-1.5 rounded text-white">
-                                        <Table2Icon size={16} />
-                                    </div>
-                                    Entities
-                                </Link>
-                            </li>
-                        </ul>
+                        {
+                            current_project.user_id == user.id && (
+                                <ul>
+                                    <li className="p-2">
+                                        <Link
+                                            href={`/p/${current_project.uuid}/entities`}
+                                            className="hover:bg-[#E6E5FF]  rounded-[5px] py-3 px-5 text-sm flex items-center gap-4"
+                                        >
+                                            <div className="bg-primary p-1.5 rounded text-white">
+                                                <Table2Icon size={16} />
+                                            </div>
+                                            Entities
+                                        </Link>
+                                    </li>
+                                    <li className="p-2">
+                                        <Link
+                                            href={`/p/${current_project.uuid}/users`}
+                                            className="hover:bg-[#E6E5FF]  rounded-[5px] py-3 px-5 text-sm flex items-center gap-4"
+                                        >
+                                            <div className="bg-primary p-1.5 rounded text-white">
+                                                <Table2Icon size={16} />
+                                            </div>
+                                            Users
+                                        </Link>
+                                    </li>
+                                </ul>
+                            )
+                        }
                         <hr />
                         <ul>
                             {current_project.entities?.map((entity) => (

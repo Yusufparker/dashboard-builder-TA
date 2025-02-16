@@ -26,7 +26,8 @@ type Widget = {
 };
 
 export default function Dashboard({widgets} : {widgets : Widget[]} ) {
-    const project_uuid = usePage().props.current_project.uuid;
+    const current_project = usePage().props.current_project;
+    const user = usePage().props.auth.user;
 
     const renderWidget = (item :Widget) => {
         switch (item.type) {
@@ -67,17 +68,21 @@ export default function Dashboard({widgets} : {widgets : Widget[]} ) {
                         {renderWidget(item)}
                     </div>
                 ))}
-                <div className="col-span-1 flex justify-center">
-                    <Link
-                        href={`/p/${project_uuid}/customize`}
-                        className="w-full"
-                    >
-                        <Button className="w-full h-40 bg-white text-primary px-6 border border-primary border-dashed hover:bg-slate-200 py-3 transition flex items-center justify-center">
-                            <PenTool />
-                            Customize Dashboard
-                        </Button>
-                    </Link>
-                </div>
+                {
+                    current_project.user_id == user.id && (
+                    <div className="col-span-1 flex justify-center">
+                        <Link
+                            href={`/p/${current_project.uuid}/customize`}
+                            className="w-full"
+                        >
+                            <Button className="w-full h-40 bg-white text-primary px-6 border border-primary border-dashed hover:bg-slate-200 py-3 transition flex items-center justify-center">
+                                <PenTool />
+                                Customize Dashboard
+                            </Button>
+                        </Link>
+                    </div>
+                )
+                }
             </div>
         </DashboardLayout>
     );

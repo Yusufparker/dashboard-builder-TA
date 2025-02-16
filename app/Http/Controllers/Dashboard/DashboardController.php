@@ -14,10 +14,6 @@ class DashboardController extends Controller
 {
     public function index($uuid){
         $project = Project::where('uuid', $uuid)->firstOrFail();
-        if($project->user_id != Auth::user()->id){
-            return redirect()->route('home');
-        }
-
         $widgets = DashboardWidget::where('project_id', $project->id)->first();
 
         if ($widgets) {

@@ -19,6 +19,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'load.current_project' => \App\Http\Middleware\LoadCurrentProject::class,
             'own.project' => \App\Http\Middleware\OwnProject::class,
+            'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
+            'members' => \App\Http\Middleware\PartOfProject::class,
         ]);
 
         //

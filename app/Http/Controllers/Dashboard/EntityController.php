@@ -151,14 +151,22 @@ class EntityController extends Controller
 
             $project_id = request('project_id');
             $entity_id = request('entity_id');
-            $curent_project = Project::find($project_id);
+            $curent_project = Project::where('id', $project_id)->with('members')->first();
             if (!$curent_project) {
                 return response()->json(['message' => 'Project not found'], 404);
             }
 
-            if (Auth::user()->id != $curent_project->user_id) {
+            //start middleware
+            $userId = Auth::user()->id;
+            $isMember = $curent_project->members->contains(
+                fn($member) =>
+                $member->user_id === $userId && $member->status === 'accepted'
+            );
+
+            if ($userId != $curent_project->user_id && !$isMember) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
+            //end middleware
 
             $values = request('values');
             $files = request()->file('files');
@@ -214,17 +222,23 @@ class EntityController extends Controller
             $entity = ProjectEntity::where('id', $id)
                 ->with('values')
                 ->withCount('values')
-                ->first();
-
-            
+                ->first();            
             if (!$entity) {
                 return response()->json(['message' => 'Entity not found'], 404);
             }
 
-            $project = Project::find($entity->project_id);
-            if (Auth::user()->id != $project->user_id) {
-                abort(403, 'Unauthorized action.');
+            //start middleware
+            $project = Project::where('id',$entity->project_id)->with('members')->first();
+            $userId = Auth::user()->id;
+            $isMember = $project->members->contains(
+                fn($member) =>
+                $member->user_id === $userId && $member->status === 'accepted'
+            );
+
+            if ($userId != $project->user_id && !$isMember) {
+                return response()->json(['message' => 'Unauthorized'], 403);
             }
+            //end middleware
 
             date_default_timezone_set('Asia/Jakarta'); 
             // Format nama bulan
