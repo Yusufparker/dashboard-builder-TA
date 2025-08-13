@@ -25,7 +25,7 @@ class OwnProject
         $project = Project::where('uuid', $uuid)->firstOrFail();
 
         if ($project->user_id != Auth::id()) {
-            abort(404, 'Project not found');
+            abort(403, 'You are not authorized to access this project.');
         }
 
         return $next($request);

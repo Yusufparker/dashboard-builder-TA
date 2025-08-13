@@ -6,7 +6,7 @@ import "filepond-plugin-image-preview/dist/filepond-plugin-image-preview.css";
 import "filepond/dist/filepond.min.css";
 import { Label } from "@/Components/ui/label";
 import { Input } from "@/Components/ui/input";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { capitalizeWords } from "@/lib/utils";
 import { Editor } from "@tinymce/tinymce-react";
 import { Button } from "@/Components/ui/button";
@@ -16,10 +16,18 @@ import toast from "react-hot-toast";
 
 registerPlugin(FilePondPluginImageExifOrientation, FilePondPluginImagePreview);
 
-const TableForm = ({ entity_id,fields }: { fields: FieldsType[], entity_id : number }) => {
+const TableForm = ({
+    entity_id,
+    fields,
+    existingValue,
+}: {
+    fields: FieldsType[];
+    entity_id: number;
+    existingValue?: any;
+}) => {
     const project_id = usePage().props.current_project.id;
     const [formData, setFormData] = useState<Record<string, any>>({});
-    const [loading, setLoading] = useState<boolean>(false)
+    const [loading, setLoading] = useState<boolean>(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const handleInputChange = (
         fieldId: string,
@@ -30,7 +38,7 @@ const TableForm = ({ entity_id,fields }: { fields: FieldsType[], entity_id : num
             ...prev,
             [fieldId]: {
                 v: value,
-                type: fieldType, 
+                type: fieldType,
             },
         }));
 
@@ -53,19 +61,41 @@ const TableForm = ({ entity_id,fields }: { fields: FieldsType[], entity_id : num
             }
         }
     };
+    useEffect(() => {
+        if (existingValue) {
+            const initialData: Record<string, any> = {};
+            existingValue.detail_values.forEach((detail: any) => {
+                const fieldTypeName = detail.field.type.name;
+                let val = detail.value;
+
+                if (fieldTypeName === "Boolean") {
+                    // treat 1/"1"/true as true, else false
+                    val = val === 1 || val === "1" || val === true;
+                }
+
+                initialData[String(detail.field.id)] = {
+                    v: val,
+                    type: fieldTypeName,
+                };
+            });
+            setFormData(initialData);
+            // console.log("Existing value loaded:", initialData);
+        }
+    }, [existingValue]);
+
+
 
 
     const handleSubmit = async () => {
         let formIsValid = true;
         let tempErrors: Record<string, string> = {};
         console.log(formData);
-        
 
         fields.forEach((field) => {
             const fieldId = String(field.id);
             if (field.is_required && !formData[fieldId]) {
                 formIsValid = false;
-                tempErrors[fieldId] = "This field is required"; 
+                tempErrors[fieldId] = "This field is required";
             }
             if (field.type.name === "Email" && formData[fieldId]?.v) {
                 // Validasi email di handleSubmit
@@ -78,18 +108,21 @@ const TableForm = ({ entity_id,fields }: { fields: FieldsType[], entity_id : num
         });
 
         if (formIsValid) {
-            await handleStoreValue()
-
+            if (existingValue) {
+                await handleUpdateValue(existingValue.id);
+            } else {
+                await handleStoreValue();
+            }
         } else {
             setErrors(tempErrors);
         }
     };
-    const handleStoreValue = async () => {
+    const handleUpdateValue = async (id: number) => {
         const form = new FormData();
+
         for (const [key, data] of Object.entries(formData)) {
             if (data.type === "Image" && data.v instanceof File) {
-                //send as file
-                form.append(`files[${key}]`, data.v); 
+                form.append(`files[${key}]`, data.v);
                 form.append(
                     `values[${key}]`,
                     JSON.stringify({ v: "", type: data.type })
@@ -106,7 +139,46 @@ const TableForm = ({ entity_id,fields }: { fields: FieldsType[], entity_id : num
         form.append("entity_id", String(entity_id));
 
         try {
-            setLoading(true)
+            setLoading(true);
+            const response = await axios.post(`/update-value/${id}`, form, {
+                headers: { "Content-Type": "multipart/form-data" },
+            });
+            toast.success(response.data.message);
+            setTimeout(() => {
+                window.location.reload();
+            }, 1100);
+        } catch (error) {
+            console.error("Error updating form:", error);
+            toast.error("Failed to update data.");
+            setLoading(false);
+        }
+        console.log("Form data updated:", formData);
+        
+    };
+
+    const handleStoreValue = async () => {
+        const form = new FormData();
+        for (const [key, data] of Object.entries(formData)) {
+            if (data.type === "Image" && data.v instanceof File) {
+                //send as file
+                form.append(`files[${key}]`, data.v);
+                form.append(
+                    `values[${key}]`,
+                    JSON.stringify({ v: "", type: data.type })
+                );
+            } else {
+                form.append(
+                    `values[${key}]`,
+                    JSON.stringify({ v: data.v, type: data.type })
+                );
+            }
+        }
+
+        form.append("project_id", String(project_id));
+        form.append("entity_id", String(entity_id));
+
+        try {
+            setLoading(true);
             const response = await axios.post("/store-value", form, {
                 headers: { "Content-Type": "multipart/form-data" },
             });
@@ -117,12 +189,14 @@ const TableForm = ({ entity_id,fields }: { fields: FieldsType[], entity_id : num
             }, 1100);
         } catch (error) {
             console.error("Error submitting form:", error);
-            toast.error("Failed to add data. If the issue persists, please refresh the page.");
-            setLoading(false)
+            toast.error(
+                "Failed to add data. If the issue persists, please refresh the page."
+            );
+            setLoading(false);
         }
+        console.log("Form data submitted:", formData);
+        
     };
-
-
 
     return (
         <div>
@@ -172,6 +246,10 @@ const renderInput = (
     const fieldId = String(field.id);
     const value = formData[fieldId]?.v || "";
     const errorMessage = errors[fieldId];
+    const page = usePage();
+    const project = page.props.current_project;
+    const user = page.props.auth.user;
+    const isOwner = user?.id === project?.user_id;
 
     return (
         <div>
@@ -183,15 +261,15 @@ const renderInput = (
                                 type="text"
                                 id={`field-${field.id}`}
                                 required={field.is_required}
-                                value={value}
-                                onChange={
-                                    (e) =>
-                                        handleInputChange(
-                                            fieldId,
-                                            e.target.value,
-                                            field.type.name
-                                        ) 
+                                value={value || field.default_value || ""}
+                                onChange={(e) =>
+                                    handleInputChange(
+                                        fieldId,
+                                        e.target.value,
+                                        field.type.name
+                                    )
                                 }
+                                disabled={field.is_readonly && !isOwner}
                             />
                         );
                     case "Number":
@@ -200,7 +278,7 @@ const renderInput = (
                                 type="number"
                                 id={`field-${field.id}`}
                                 required={field.is_required}
-                                value={value}
+                                value={value || field.default_value || ""}
                                 onChange={(e) =>
                                     handleInputChange(
                                         fieldId,
@@ -208,16 +286,26 @@ const renderInput = (
                                         field.type.name
                                     )
                                 }
+                                disabled={field.is_readonly && !isOwner}
                             />
                         );
-                    case "Boolean":
+                    case "Boolean": {
+                        const raw = formData[fieldId]?.v;
+                        const parseBool = (v: any) =>
+                            String(v).trim().toLowerCase() === "true" ||
+                            v === true;
+                        const hasManual = raw !== undefined && raw !== null;
+                        const isChecked = hasManual
+                            ? Boolean(raw)
+                            : parseBool(field.default_value);
+
                         return (
                             <div className="flex items-center gap-3">
                                 <Input
                                     type="checkbox"
                                     id={`field-${field.id}`}
                                     className="h-6 w-5"
-                                    checked={value || false}
+                                    checked={isChecked}
                                     onChange={(e) =>
                                         handleInputChange(
                                             fieldId,
@@ -225,6 +313,7 @@ const renderInput = (
                                             field.type.name
                                         )
                                     }
+                                    disabled={field.is_readonly && !isOwner}
                                 />
                                 <Label
                                     htmlFor={`field-${field.id}`}
@@ -234,13 +323,15 @@ const renderInput = (
                                 </Label>
                             </div>
                         );
+                    }
+
                     case "Email":
                         return (
                             <Input
                                 type="email"
                                 id={`field-${field.id}`}
                                 required={field.is_required}
-                                value={value}
+                                value={value || field.default_value || ""}
                                 onChange={(e) =>
                                     handleInputChange(
                                         fieldId,
@@ -248,16 +339,17 @@ const renderInput = (
                                         field.type.name
                                     )
                                 }
+                                disabled={field.is_readonly && !isOwner}
                             />
                         );
-                    case "Date" : 
+                    case "Date":
                         return (
                             <Input
                                 type="date"
                                 className="w-50"
                                 id={`field-${field.id}`}
                                 required={field.is_required}
-                                value={value}
+                                value={value || field.default_value}
                                 onChange={(e) =>
                                     handleInputChange(
                                         fieldId,
@@ -265,6 +357,7 @@ const renderInput = (
                                         field.type.name
                                     )
                                 }
+                                disabled={field.is_readonly && !isOwner}
                             />
                         );
 
@@ -276,14 +369,18 @@ const renderInput = (
                                     acceptedFileTypes={["image/*"]}
                                     credits={false}
                                     onupdatefiles={(fileItems) => {
-                                        const selectedFile = fileItems.length > 0 ? fileItems[0].file : null
-                                    
+                                        const selectedFile =
+                                            fileItems.length > 0
+                                                ? fileItems[0].file
+                                                : null;
+
                                         handleInputChange(
                                             fieldId,
                                             selectedFile,
                                             field.type.name
                                         );
                                     }}
+                                    disabled={field.is_readonly && !isOwner}
                                 />
                             </div>
                         );
@@ -291,7 +388,7 @@ const renderInput = (
                         return (
                             <Editor
                                 apiKey="pwlim18bd3c962waor0hcgke5x5fddqncranvj0ou1fjodjg"
-                                value={value}
+                                value={value || field.default_value || ""}
                                 onEditorChange={(content) =>
                                     handleInputChange(
                                         fieldId,
@@ -299,6 +396,7 @@ const renderInput = (
                                         field.type.name
                                     )
                                 }
+                                disabled={field.is_readonly && !isOwner}
                                 init={{
                                     height: 500,
                                     menubar: true,
@@ -337,7 +435,7 @@ const renderInput = (
                                 type="text"
                                 id={`field-${field.id}`}
                                 required={field.is_required}
-                                value={value}
+                                value={value || field.default_value || ""}
                                 onChange={(e) =>
                                     handleInputChange(
                                         fieldId,
@@ -345,6 +443,7 @@ const renderInput = (
                                         field.type.name
                                     )
                                 }
+                                disabled={field.is_readonly && !isOwner}
                             />
                         );
                 }

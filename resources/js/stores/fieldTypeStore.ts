@@ -12,7 +12,7 @@ type ResponseFieldType = {
 export const useGetTypes = () =>{
     const [isLoading, setisLoading] = useState<boolean>(false);
     const [isError, setIsError] = useState<boolean>(false);
-    const [error, setError] = useState<string>("");
+    const [error, setError] = useState<string>("");     
     const [fieldTypes, setFieldTypes] = useState<ResponseFieldType[]>([]);
 
     const getFieldTypes = async () => {

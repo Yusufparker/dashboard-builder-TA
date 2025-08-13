@@ -41,11 +41,13 @@ class EntitySettingController extends Controller
                     'string',
                     'unique:entity_settings,endpoint,' . $setting->id 
                 ],
+                'api_key' => ['required', 'string'],
             ]);
     
             $setting->update([
                 'is_api_enabled' => request('is_api_enabled'),
                 'endpoint' => request('endpoint'),
+                'api_key' => request('api_key'),
             ]);
     
             return response()->json([

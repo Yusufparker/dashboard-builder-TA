@@ -10,7 +10,15 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Button, buttonVariants } from "@/Components/ui/button";
-import { SquareDashed, BarChart, Type, RectangleHorizontal } from "lucide-react";
+import {
+    SquareDashed,
+    BarChart,
+    Type,
+    RectangleHorizontal,
+    Edit,
+    Trash2,
+    X,
+} from "lucide-react";
 import CardWidget from "@/Components/widgets/CardWidget";
 import { BarchartWidget } from "@/Components/widgets/BarchartWidget";
 import LinechartWidget from "@/Components/widgets/LinechartWidget";
@@ -31,12 +39,16 @@ type Item = {
     entity?: EntityType;
     type: string;
     text?: string;
-    textSize? : string;
-    textBold? : boolean;
-    layout? : string;
+    textSize?: string;
+    textBold?: boolean;
+    layout?: string;
 };
 
-type DraggableCardProps = { item: Item };
+type DraggableCardProps = {
+    item: Item;
+    onEdit: (item: Item) => void;
+    onDelete: (id: number) => void;
+};
 
 let widgetTypeOption = [
     {
@@ -57,14 +69,16 @@ let widgetTypeOption = [
     },
 ];
 const layoutOptions = [
-    { value: "col-span-1", title:"small" },
+    { value: "col-span-1", title: "small" },
     { value: "col-span-2", title: "medium" },
     { value: "col-span-3", title: "large" },
 ];
 
-function DraggableCard({ item }: DraggableCardProps) {
+function DraggableCard({ item, onEdit, onDelete }: DraggableCardProps) {
     const { attributes, listeners, setNodeRef, transform, transition } =
         useSortable({ id: item.id });
+
+    const [showActions, setShowActions] = useState(false);
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -74,9 +88,7 @@ function DraggableCard({ item }: DraggableCardProps) {
     const renderWidget = () => {
         switch (item.type) {
             case "card":
-                return (
-                    <CardWidget entity_id={item.entity?.id} />
-                );
+                return <CardWidget entity_id={item.entity?.id} />;
             case "barchart":
                 return <BarchartWidget entity_id={item.entity?.id} />;
             case "linechart":
@@ -84,9 +96,16 @@ function DraggableCard({ item }: DraggableCardProps) {
             case "text":
                 return (
                     <>
-                        <p className={`${item.textBold ? 'font-bold' : ''}  text-gray-700 text-center w-full` }style={{
-                            fontSize : `${item.textSize}px`
-                        }}>{item.text}</p>
+                        <p
+                            className={`${
+                                item.textBold ? "font-bold" : ""
+                            }  text-gray-700 text-center w-full`}
+                            style={{
+                                fontSize: `${item.textSize}px`,
+                            }}
+                        >
+                            {item.text}
+                        </p>
                     </>
                 );
             default:
@@ -98,21 +117,55 @@ function DraggableCard({ item }: DraggableCardProps) {
         <div
             ref={setNodeRef}
             style={style}
-            {...attributes}
-            {...listeners}
-            className={`${item?.layout}  bg-white rounded-lg shadow-sm border cursor-pointer h-40 flex items-center`}
+            className={`${item?.layout} bg-white rounded-lg shadow-sm border cursor-pointer h-40 flex items-center relative group`}
+            onMouseEnter={() => setShowActions(true)}
+            onMouseLeave={() => setShowActions(false)}
         >
-            {renderWidget()}
+            <div
+                {...attributes}
+                {...listeners}
+                className="w-full h-full flex items-center"
+            >
+                {renderWidget()}
+            </div>
+
+            {/* Action buttons */}
+            {showActions && (
+                <div className="absolute top-2 right-2 flex gap-1 bg-white rounded-md shadow-md p-1">
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onEdit(item);
+                        }}
+                    >
+                        <Edit size={12} />
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onDelete(item.id);
+                        }}
+                    >
+                        <Trash2 size={12} />
+                    </Button>
+                </div>
+            )}
         </div>
     );
 }
 
 export default function EditDashboard({
     entities,
-    widgets
+    widgets,
 }: {
     entities: EntityType[];
-    widgets : Item[]
+    widgets: Item[];
 }) {
     const [dashboardItems, setDashboardItems] = useState<Item[]>(widgets);
     const [selectedType, setSelectedType] = useState<string | null>(null);
@@ -123,11 +176,14 @@ export default function EditDashboard({
     const [selectedLayout, setSelectedLayout] = useState<string>("");
     const [loading, setLoading] = useState<boolean>(false);
 
+    // Edit state
+    const [editingItem, setEditingItem] = useState<Item | null>(null);
+    const [isEditing, setIsEditing] = useState<boolean>(false);
+
     const project_uuid = usePage().props.current_project.uuid;
 
     console.log(dashboardItems);
     console.log(widgets);
-    
 
     const handleDragEnd = (event: any) => {
         const { active, over } = event;
@@ -142,6 +198,70 @@ export default function EditDashboard({
         }
     };
 
+    const handleEdit = (item: Item) => {
+        setEditingItem(item);
+        setIsEditing(true);
+        setSelectedType(item.type);
+
+        if (item.type === "text") {
+            setInputText(item.text || "");
+            setTextSize(item.textSize || "14");
+            setTextBold(item.textBold || false);
+        } else {
+            setSelectedEntity(item.entity?.uuid || "");
+        }
+        setSelectedLayout(item.layout || "");
+    };
+
+    const handleDelete = (id: number) => {
+        if (confirm("Are you sure you want to delete this item?")) {
+            setDashboardItems(dashboardItems.filter((item) => item.id !== id));
+        }
+    };
+
+    const cancelEdit = () => {
+        setIsEditing(false);
+        setEditingItem(null);
+        setSelectedType(null);
+        setSelectedEntity("");
+        setInputText("");
+        setTextSize("14");
+        setTextBold(false);
+        setSelectedLayout("");
+    };
+
+    const saveEdit = () => {
+        if (!editingItem || !selectedType) return;
+
+        const updatedItems = dashboardItems.map((item) => {
+            if (item.id === editingItem.id) {
+                if (selectedType === "text") {
+                    return {
+                        ...item,
+                        text: inputText,
+                        textSize,
+                        textBold,
+                        layout: selectedLayout,
+                    };
+                } else {
+                    const entity = entities.find(
+                        (e) => e.uuid === selectedEntity
+                    );
+                    return {
+                        ...item,
+                        entity,
+                        type: selectedType,
+                        layout: selectedLayout,
+                    };
+                }
+            }
+            return item;
+        });
+
+        setDashboardItems(updatedItems);
+        cancelEdit();
+    };
+
     const addEntity = () => {
         if (!selectedType) return;
 
@@ -153,11 +273,11 @@ export default function EditDashboard({
                     id: Date.now(),
                     type: "text",
                     text: inputText,
-                    layout : selectedLayout,
+                    layout: selectedLayout,
                     textSize,
                     textBold,
                 },
-            ]);            
+            ]);
 
             setInputText("");
             setTextSize("12");
@@ -174,28 +294,38 @@ export default function EditDashboard({
             ) {
                 setDashboardItems([
                     ...dashboardItems,
-                    { id: Date.now(), entity, type: selectedType, layout : selectedLayout },
+                    {
+                        id: Date.now(),
+                        entity,
+                        type: selectedType,
+                        layout: selectedLayout,
+                    },
                 ]);
             }
         }
+
+        // Reset form
+        setSelectedType(null);
+        setSelectedEntity("");
+        setSelectedLayout("");
     };
 
     const handleSubmit = async () => {
         try {
-            setLoading(true)
+            setLoading(true);
             const response = await axios.post(
                 `/p/${project_uuid}/customize/store`,
                 {
-                    items: dashboardItems, 
+                    items: dashboardItems,
                 }
             );
 
             toast.success("Dashboard successfully updated!");
-            window.location.href=`/p/${project_uuid}`;
+            window.location.href = `/p/${project_uuid}`;
         } catch (error) {
             console.error("Error saving dashboard:", error);
             toast.error("Failed to update the dashboard!");
-            setLoading(false)
+            setLoading(false);
         }
     };
 
@@ -220,7 +350,7 @@ export default function EditDashboard({
                                     Back
                                 </Link>
 
-                                <Button 
+                                <Button
                                     onClick={handleSubmit}
                                     disabled={loading}
                                 >
@@ -236,7 +366,7 @@ export default function EditDashboard({
                                 items={dashboardItems}
                                 strategy={verticalListSortingStrategy}
                             >
-                                <div className="grid grid-cols-3 gap-4 bg-gray-100 p-4 rounded-lg min-h-[300px]">
+                                <div className="grid grid-cols-3 gap-4 bg-white p-4 rounded-lg min-h-[300px]">
                                     {dashboardItems.length === 0 ? (
                                         <p className="text-gray-500 text-sm text-center col-span-3 ">
                                             No items added
@@ -246,6 +376,8 @@ export default function EditDashboard({
                                             <DraggableCard
                                                 key={item.id}
                                                 item={item}
+                                                onEdit={handleEdit}
+                                                onDelete={handleDelete}
                                             />
                                         ))
                                     )}
@@ -253,17 +385,48 @@ export default function EditDashboard({
                             </SortableContext>
                         </DndContext>
                     </div>
+
                     {/* Sidebar Navigation */}
-                    <aside className="w-1/4 bg-gray-100 border p-4 rounded-lg flex flex-col items-center">
-                        <div className="flex flex-wrap gap-2  mb-4">
+                    <aside className="w-1/4 bg-white border p-4 rounded-lg flex flex-col items-center">
+                        {isEditing && (
+                            <div className="w-full mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                <div className="flex justify-between items-center mb-2">
+                                    <h3 className="text-sm font-medium text-blue-800">
+                                        Edit Mode
+                                    </h3>
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-6 w-6 p-0"
+                                        onClick={cancelEdit}
+                                    >
+                                        <X size={12} />
+                                    </Button>
+                                </div>
+                                <p className="text-xs text-blue-600">
+                                    Editing: {editingItem?.type} widget
+                                </p>
+                            </div>
+                        )}
+
+                        <div className="flex flex-wrap gap-2 mb-4">
                             {widgetTypeOption.map((option, index) => (
                                 <button
                                     key={index}
                                     onClick={() => setSelectedType(option.type)}
+                                    disabled={
+                                        isEditing &&
+                                        editingItem?.type !== option.type
+                                    }
                                     className={`w-[62px] h-[62px] border rounded-lg cursor-pointer flex flex-col items-center justify-center gap-2 transition ${
                                         selectedType === option.type
                                             ? "bg-gray-300"
                                             : "bg-white"
+                                    } ${
+                                        isEditing &&
+                                        editingItem?.type !== option.type
+                                            ? "opacity-50 cursor-not-allowed"
+                                            : ""
                                     }`}
                                 >
                                     {option.icon}
@@ -292,7 +455,7 @@ export default function EditDashboard({
                                         </label>
                                         <input
                                             type="number"
-                                            placeholder="Enter text"
+                                            placeholder="Enter text size"
                                             value={textSize}
                                             onChange={(e) =>
                                                 setTextSize(e.target.value)
@@ -300,7 +463,7 @@ export default function EditDashboard({
                                             className="w-full p-2 border text-xs rounded-lg mb-4"
                                         />
 
-                                        <label className="flex items-center gap-2 text-xs">
+                                        <label className="flex items-center gap-2 text-xs mb-4">
                                             <input
                                                 type="checkbox"
                                                 checked={textBold}
@@ -363,12 +526,31 @@ export default function EditDashboard({
                                     ))}
                                 </div>
 
-                                <Button
-                                    onClick={addEntity}
-                                    className="w-full mt-2"
-                                >
-                                    Add
-                                </Button>
+                                {isEditing ? (
+                                    <div className="flex gap-2 w-full">
+                                        <Button
+                                            onClick={saveEdit}
+                                            className="flex-1"
+                                            variant="default"
+                                        >
+                                            Save Changes
+                                        </Button>
+                                        <Button
+                                            onClick={cancelEdit}
+                                            className="flex-1"
+                                            variant="outline"
+                                        >
+                                            Cancel
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <Button
+                                        onClick={addEntity}
+                                        className="w-full mt-2"
+                                    >
+                                        Add
+                                    </Button>
+                                )}
                             </>
                         )}
                     </aside>

@@ -30,11 +30,14 @@ import {
 
 
 
+
 export type FieldType = {
     title: string;
     slug: string;
     type_id: number | null;
     isRequired: boolean;
+    defaultValue?: string;
+    isReadOnly?: boolean;
 };
 
 const EntityEditor = () => {

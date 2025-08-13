@@ -1,4 +1,4 @@
-import { buttonVariants } from "@/Components/ui/button";
+import { Button, buttonVariants } from "@/Components/ui/button";
 import DashboardLayout from "@/Layouts/DashboardLayout";
 import { capitalizeWords } from "@/lib/utils";
 import { Link, usePage } from "@inertiajs/react";
@@ -13,6 +13,10 @@ import {
 } from "@/Components/ui/table";
 import { useState } from "react";
 import { Input } from "@/Components/ui/input";
+import { SquarePen, Trash } from "lucide-react";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/Components/ui/dialog";
+import { useDeleteDataValue } from "@/stores/dataValueStore";
+
 
 
 export type EntityDetail = {
@@ -30,6 +34,8 @@ export type FieldsType = {
     type_id : number;
     is_required : boolean;
     created_at : Date;
+    default_value : string | null;
+    is_readonly : boolean;
     type : Type
 }
 
@@ -62,7 +68,9 @@ const TableField = ({
     entity_detail: EntityDetail;
     values: PaginatedData;
 }) => {
-    const project_uuid = usePage().props.current_project.uuid;
+    const project = usePage().props.current_project;
+    const project_uuid = project.uuid;
+    const user = usePage().props.auth.user;
     const [searchQuery, setSearchQuery] = useState<string>("");
     const filteredData = values.data.filter((v) =>
         entity_detail.fields.some((field) =>
@@ -72,6 +80,14 @@ const TableField = ({
                 .includes(searchQuery.toLowerCase())
         )
     );
+    const { deleteDataValue, isDeleting } = useDeleteDataValue();
+
+
+    const handleDelete = async (id:number) => {
+        await deleteDataValue(id, () => {
+            window.location.reload();
+        });
+    };
 
     return (
         <DashboardLayout>
@@ -110,7 +126,9 @@ const TableField = ({
                                         {capitalizeWords(field.title)}
                                     </TableHead>
                                 ))}
-                                <TableHead className="text-right"></TableHead>
+                                <TableHead className="text-right font-semibold">
+                                    Actions
+                                </TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -175,6 +193,87 @@ const TableField = ({
                                                 </TableCell>
                                             );
                                         })}
+
+                                        {/* edit button */}
+                                        <TableCell>
+                                            <div className="flex justify-end px-2">
+                                                {(v.user_id === user.id ||
+                                                    project.user_id ===
+                                                        user.id) && (
+                                                    <>
+                                                        {/* delete  button */}
+                                                        <Dialog>
+                                                            <DialogTrigger
+                                                                asChild
+                                                            >
+                                                                <button className="text-red-600 hover:text-red-800 me-2">
+                                                                    <Trash
+                                                                        size={
+                                                                            15
+                                                                        }
+                                                                    />
+                                                                </button>
+                                                            </DialogTrigger>
+                                                            <DialogContent className="sm:max-w-md">
+                                                                <DialogHeader>
+                                                                    <DialogTitle>
+                                                                        Delete
+                                                                        Data?
+                                                                    </DialogTitle>
+                                                                    <DialogDescription>
+                                                                        Are you
+                                                                        sure you
+                                                                        want to
+                                                                        delete
+                                                                        this
+                                                                        data?
+                                                                        This
+                                                                        action
+                                                                        cannot
+                                                                        be
+                                                                        undone.
+                                                                    </DialogDescription>
+                                                                </DialogHeader>
+                                                                <DialogFooter>
+                                                                    <DialogClose
+                                                                        asChild
+                                                                    >
+                                                                        <Button variant="secondary">
+                                                                            Cancel
+                                                                        </Button>
+                                                                    </DialogClose>
+
+                                                                    <Button
+                                                                        variant="destructive"
+                                                                        onClick={() =>
+                                                                            handleDelete(
+                                                                                v.id
+                                                                            )
+                                                                        }
+                                                                        disabled={
+                                                                            isDeleting
+                                                                        }
+                                                                    >
+                                                                        {isDeleting
+                                                                            ? "Deleting..."
+                                                                            : "Delete"}
+                                                                    </Button>
+                                                                </DialogFooter>
+                                                            </DialogContent>
+                                                        </Dialog>
+
+                                                        <Link
+                                                            href={`/p/${project.uuid}/table/${entity_detail.uuid}/edit/${v.id}`}
+                                                            className="text-orange-600 hover:text-orange-800"
+                                                        >
+                                                            <SquarePen
+                                                                size={15}
+                                                            />
+                                                        </Link>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </TableCell>
                                     </TableRow>
                                 ))
                             ) : (

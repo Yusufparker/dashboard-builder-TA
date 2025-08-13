@@ -26,7 +26,8 @@ class EntityController extends Controller
         return Inertia::render('Entities/New');
     }
 
-    public function store(){
+    public function store()
+    {
         try {
             DB::beginTransaction();
             $project_uuid = request('project_uuid');
@@ -36,10 +37,7 @@ class EntityController extends Controller
 
             $exists = ProjectEntity::where([
                 ['project_id', '=', $project->id],
-                ['name',
-                    '=',
-                    strtolower($entity_name)
-                ]
+                ['name', '=', strtolower($entity_name)]
             ])->exists();
 
             if ($exists) {
@@ -61,16 +59,18 @@ class EntityController extends Controller
                 'endpoint' => $entity->uuid,
                 'is_api_enabled' => false
             ]);
-            
+
             foreach ($fields as $field) {
                 EntityField::create([
                     'project_entity_id' => $entity->id,
-                    'title' => strtolower($field['title']), 
+                    'title' => strtolower($field['title']),
                     'type_id' => $field['type_id'],
-                    'is_required' => $field['isRequired']
+                    'is_required' => $field['isRequired'],
+                    // Handle advanced fields
+                    'default_value' => $field['defaultValue'] ?? null,
+                    'is_readonly' => $field['isReadOnly'] ?? false
                 ]);
             }
-
 
             DB::commit();
             return response()->json([
@@ -129,7 +129,27 @@ class EntityController extends Controller
         ]);
     }
 
-   
+    public function destroy($project_uuid, $entity_uuid)
+    {
+        $project = Project::where('uuid', $project_uuid)->first();
+        $entity = ProjectEntity::where('uuid', $entity_uuid)->firstOrFail();
+
+        if ($project->id !== $entity->project_id) {
+            return abort(404);
+        }
+
+        // Delete all values associated with the entity
+        EntityFieldValue::where('project_entity_id', $entity->id)->delete();
+
+        // Delete the entity itself
+        $entity->delete();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Entity deleted successfully',
+        ], 200);
+    }
+
 
     public function addNewValue($project_uuid, $entity_uuid){
         $project = Project::where('uuid', $project_uuid)->first();
@@ -143,6 +163,38 @@ class EntityController extends Controller
             'entity_detail' => $entity_detail
         ]);
     }
+
+
+    public function editValue($project_uuid, $entity_uuid, $id)
+    {
+        $project = Project::where('uuid', $project_uuid)->first();
+        $entity_detail = ProjectEntity::where('uuid', $entity_uuid)
+            ->with('fields.type')
+            ->firstOrFail();
+
+        if ($project->id !== $entity_detail->project_id) {
+            return abort(404);
+        }
+
+        $value = EntityFieldValue::where('id', $id)
+            ->with('detailValues.field.type')
+            ->firstOrFail();
+
+        $authUserId = Auth::id();
+
+        $isOwner = $project->user_id === $authUserId;
+        $isFiller = $value->user_id === $authUserId;
+
+        if (!($isOwner || $isFiller)) {
+            abort(403, 'You are not authorized to edit this value.');
+        }
+
+        return Inertia::render('Table/Edit', [
+            'entity_detail' => $entity_detail,
+            'value' => $value
+        ]);
+    }
+
 
     public function storeValue()
     {
@@ -207,6 +259,80 @@ class EntityController extends Controller
             ], 500);
         }
     }
+
+    public function updateValue($id)
+    {
+        try {
+            DB::beginTransaction();
+
+            // Ambil data entity_field_value dan validasi keberadaannya
+            $entity_field_value = EntityFieldValue::findOrFail($id);
+            $entity_id = $entity_field_value->project_entity_id;
+
+            // Ambil ProjectEntity dengan relasi project
+            $curent_project = ProjectEntity::where('id', $entity_id)
+                ->with('project') // pastikan relasi project tersedia
+                ->first();
+
+            if (!$curent_project || !$curent_project->project) {
+                return response()->json(['message' => 'Project not found'], 404);
+            }
+
+            // Ambil data user
+            if (!Auth::check()) {
+                return response()->json(['message' => 'Unauthenticated'], 401);
+            }
+
+            $userId = Auth::user()->id;
+            $project = $curent_project->project;
+
+            // Cek apakah user adalah owner atau pengisi data
+            $isOwner = $project->user_id === $userId;
+            $isFiller = $entity_field_value->user_id === $userId;
+
+            if (!($isOwner || $isFiller)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            // Ambil data dari request
+            $values = request('values');
+            $files = request()->file('files');
+
+            // Hapus nilai lama
+            DetailValue::where('entity_field_value_id', $id)->delete();
+
+            // Simpan ulang semua nilai
+            foreach ($values as $key => $json) {
+                $data = json_decode($json, true);
+                $result_value = $data['v'];
+
+                if ($data['type'] == 'Image' && isset($files[$key])) {
+                    $result_value = $this->uploadImage($files[$key]);
+                }
+
+                DetailValue::create([
+                    'entity_field_value_id' => $id,
+                    'entity_field_id' => $key,
+                    'value' => $result_value
+                ]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Data updated successfully',
+            ], 200);
+        } catch (\Throwable $th) {
+            DB::rollBack();
+
+            return response()->json([
+                'status' => 'error',
+                'message' => $th->getMessage(),
+            ], 500);
+        }
+    }
+
 
 
     private function uploadImage($image)
@@ -282,23 +408,36 @@ class EntityController extends Controller
             return response()->json(['error' => $th->getMessage()], 500);
         }
     }
-    
 
-    public function getEntityValueAPI($endpoint){
+
+    public function getEntityValueAPI($endpoint)
+    {
         $setting = EntitySetting::where('endpoint', $endpoint)->firstOrFail();
-        if($setting->is_api_enabled == 0){
+
+        // check is API enabled
+        if (!$setting->is_api_enabled) {
             return response()->json([
                 'status' => 'failed',
-                'message' => 'unauthorize'
-            ]);
+                'message' => 'Unauthorized - API access is disabled'
+            ], 403);
         }
 
+        // get API Key from request header
+        $requestApiKey = request()->header('X-API-KEY');
+
+        // api key validation
+        if (!$requestApiKey || $requestApiKey !== $setting->api_key) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Unauthorized - Invalid API Key'
+            ], 401);
+        }
+
+        // get entity detail and values
         $limit = request('limit', 5);
         $entity_detail = ProjectEntity::where('id', $setting->project_entity_id)
-            ->with(['fields','setting'])
+            ->with(['fields', 'setting'])
             ->firstOrFail();
-    
-
         $entity_values = EntityFieldValue::where('project_entity_id', $entity_detail->id)
             ->with(['detailValues.field.type', 'user'])
             ->paginate($limit);
@@ -306,15 +445,16 @@ class EntityController extends Controller
         $formatted_values = $entity_values->through(function ($item) {
             $fields = [
                 'id' => $item->id,
-                'user' =>  [
+                'user' => [
                     'id' => $item->user->id,
                     'name' => $item->user->name,
                 ],
             ];
+
             foreach ($item->detailValues as $detail) {
                 $field = $detail->field;
                 if ($field) {
-                    $fields[$field->title] = $field->type->name == 'Boolean' ?  (bool) $detail->value :  $detail->value;
+                    $fields[$field->title] = $field->type->name == 'Boolean' ? (bool) $detail->value : $detail->value;
                 }
             }
 
@@ -326,9 +466,59 @@ class EntityController extends Controller
         return response()->json($formatted_values);
     }
 
+    public function deleteValue($id)
+    {
+        try {
+            // Ambil data entity_field_value dan validasi keberadaannya
+            $entity_field_value = EntityFieldValue::findOrFail($id);
+            $entity_id = $entity_field_value->project_entity_id;
 
+            // Ambil ProjectEntity dengan relasi project
+            $curent_project = ProjectEntity::where('id', $entity_id)
+                ->with('project')
+                ->first();
 
+            if (!$curent_project || !$curent_project->project) {
+                return response()->json(['message' => 'Project not found'], 404);
+            }
 
+            // Ambil user login
+            if (!Auth::check()) {
+                return response()->json(['message' => 'Unauthenticated'], 401);
+            }
 
+            $userId = Auth::id();
+            $project = $curent_project->project;
 
+            // Validasi user sebagai owner atau pengisi data
+            $isOwner = $project->user_id === $userId;
+            $isFiller = $entity_field_value->user_id === $userId;
+
+            if (!($isOwner || $isFiller)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            DB::beginTransaction();
+
+            // Hapus detail value terlebih dahulu
+            DetailValue::where('entity_field_value_id', $id)->delete();
+
+            // Hapus entity_field_value
+            $entity_field_value->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Value deleted successfully',
+            ], 200);
+        } catch (\Throwable $th) {
+            DB::rollBack();
+
+            return response()->json([
+                'status' => 'error',
+                'message' => $th->getMessage(),
+            ], 500);
+        }
+    }
 }

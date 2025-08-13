@@ -18,15 +18,20 @@ import {
     SelectValue,
 } from "@/Components/ui/select";
 import { FieldType } from "./EntityEditor";
-type ProopsType = {
+
+type PropsType = {
     newField: FieldType;
     setNewField: React.Dispatch<React.SetStateAction<FieldType>>;
     handleAddField: () => void;
     fieldTypes: { id: number; name: string }[];
 };
 
-const FieldModal: React.FC<ProopsType> = ({newField,setNewField, handleAddField, fieldTypes}) => {
-
+const FieldModal: React.FC<PropsType> = ({
+    newField,
+    setNewField,
+    handleAddField,
+    fieldTypes,
+}) => {
     return (
         <>
             <DialogHeader>
@@ -35,7 +40,8 @@ const FieldModal: React.FC<ProopsType> = ({newField,setNewField, handleAddField,
                     Please enter the name for the new field.
                 </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
+
+            <div className="space-y-4 mt-5">
                 <div>
                     <Label>Name</Label>
                     <Input

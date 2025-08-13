@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\DB;
 
 class ProjectUserController extends Controller
 {
@@ -20,11 +21,15 @@ class ProjectUserController extends Controller
         ]);
     }
 
-    public function invite($uuid){
+    public function invite($uuid)
+    {
+        DB::beginTransaction(); // Mulai transaksi
+
         try {
             $data = request()->validate([
                 'email' => ['required', 'string', 'email'],
             ]);
+
             $project = Project::where('uuid', $uuid)->firstOrFail();
             $user = User::where('email', $data['email'])->first();
 
@@ -33,13 +38,12 @@ class ProjectUserController extends Controller
             }
 
             $existingMember = ProjectMember::where('project_id', $project->id)
-            ->where('email', $data['email'])
-            ->exists();
+                ->where('email', $data['email'])
+                ->exists();
 
             if ($existingMember) {
                 return response()->json(['message' => 'User is already invited'], 400);
             }
-
 
             ProjectMember::create([
                 'project_id' => $project->id,
@@ -53,8 +57,11 @@ class ProjectUserController extends Controller
             // Kirim email undangan
             Mail::to($data['email'])->send(new ProjectInvitation($project, $inviteUrl));
 
+            DB::commit(); // Commit jika semua proses berhasil
+
             return response()->json(['message' => 'Invitation sent successfully']);
         } catch (\Throwable $th) {
+            DB::rollBack(); // Rollback jika terjadi error
             return response()->json(['error' => $th->getMessage()], 500);
         }
     }
@@ -75,5 +82,20 @@ class ProjectUserController extends Controller
         }
 
         
+    }
+
+    public function delete($uuid, $email)
+    {
+
+        $project = Project::where('uuid', $uuid)->firstOrFail();
+        $member = ProjectMember::where('project_id', $project->id)->where('email', $email)->first();
+        
+        if (!$member) {
+            return response()->json(['message' => 'User not found in project'], 404);
+        }
+
+        $member->delete();
+
+        return response()->json(['message' => 'User removed from project successfully']);
     }
 }

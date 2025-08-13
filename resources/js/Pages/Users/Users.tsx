@@ -1,6 +1,5 @@
-
 import DashboardLayout from "@/Layouts/DashboardLayout";
-import { Button } from "@/Components/ui/button"
+import { Button } from "@/Components/ui/button";
 import {
     Dialog,
     DialogClose,
@@ -10,57 +9,50 @@ import {
     DialogHeader,
     DialogTitle,
     DialogTrigger,
-} from "@/Components/ui/dialog"
-import { Input } from "@/Components/ui/input"
-import { Label } from "@/Components/ui/label"
-import {  usePage } from "@inertiajs/react";
-import { useState } from "react";
-import axios from "axios";
+} from "@/Components/ui/dialog";
+import { Input } from "@/Components/ui/input";
+import { Label } from "@/Components/ui/label";
+import { usePage } from "@inertiajs/react";
+import { useState, useCallback } from "react";
 import UserTable from "@/Components/dashboard/users/UserTable";
+import { useMemberActions } from "@/stores/memberStore";
 
 export type MemberType = {
-    id : number;
-    project_id : number;
-    email : string;
-    status : string;
-    created_at : Date;
+    id: number;
+    project_id: number;
+    email: string;
+    status: string;
+    created_at: Date;
+};
 
-
-}
-
-const Users = ({users} : {users : MemberType[]}) => {    
+const Users = ({ users }: { users: MemberType[] }) => {
     const project_uuid = usePage().props.current_project.uuid;
+    const { inviteMember, isInviting } = useMemberActions(project_uuid);
     const [email, setEmail] = useState<string>("");
     const [error, setError] = useState<string | null>(null);
+
+    const validateEmail = (value: string) =>
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
     const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
         setEmail(value);
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-            setError("Please enter a valid email address.");
-        } else {
-            setError(null);
-        }
+        setError(
+            !validateEmail(value) ? "Please enter a valid email address." : null
+        );
     };
 
-    const handleInvite = async () => {
-        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    const handleInvite = useCallback(async () => {
+        if (!email || !validateEmail(email)) {
             setError("Please enter a valid email address.");
             return;
         }
-        try {
-            const response = await axios.post(`/p/${project_uuid}/users/invite`,{
-                email : email
-            })
-            console.log(response);
-            
-        } catch (error) {
-            console.log(error);
-            
-        }
-    };
-
-
+        await inviteMember(email, () => {
+            setEmail("");
+            setError(null);
+            window.location.reload();
+        });
+    }, [email, inviteMember]);
 
     return (
         <DashboardLayout>
@@ -81,7 +73,7 @@ const Users = ({users} : {users : MemberType[]}) => {
                             </DialogHeader>
                             <div className="flex items-center space-x-2">
                                 <div className="grid flex-1 gap-2">
-                                    <Label htmlFor="link" className="sr-only">
+                                    <Label htmlFor="email" className="sr-only">
                                         Email
                                     </Label>
                                     <Input
@@ -89,6 +81,7 @@ const Users = ({users} : {users : MemberType[]}) => {
                                         value={email}
                                         onChange={handleEmailChange}
                                         placeholder="example@mail.com"
+                                        disabled={isInviting}
                                     />
                                     {error && (
                                         <p className="text-red-500 text-sm">
@@ -107,13 +100,19 @@ const Users = ({users} : {users : MemberType[]}) => {
                                         Close
                                     </Button>
                                 </DialogClose>
-                                <Button size="sm" onClick={handleInvite}>Invite</Button>
+                                <Button
+                                    size="sm"
+                                    onClick={handleInvite}
+                                    disabled={isInviting}
+                                >
+                                    {isInviting ? "Inviting..." : "Invite"}
+                                </Button>
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>
                 </div>
                 <div className="mt-10">
-                    <UserTable users={users} />
+                    <UserTable users={users} project_uuid={project_uuid} />
                 </div>
             </div>
         </DashboardLayout>

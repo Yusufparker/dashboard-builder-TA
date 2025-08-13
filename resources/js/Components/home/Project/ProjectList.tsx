@@ -7,11 +7,12 @@ import {
 } from "@/Components/ui/card";
 import { useGetProjects } from "@/stores/projectStore";
 import ProjectDropDown from "./ProjectDropDown";
-import { Link } from "@inertiajs/react";
+import { Link, usePage } from "@inertiajs/react";
 
 
 const ProjectList = () => {
     const { projects, isLoading,getProjects } = useGetProjects();
+    const user = usePage().props.auth.user;
 
     useEffect(() => {
         if (projects.length === 0) {
@@ -29,7 +30,11 @@ const ProjectList = () => {
                 projects.map((project, index) => (
                     <Card key={index}>
                         <CardHeader className="relative h-40">
-                            <ProjectDropDown uuid={project.uuid} />
+                            {project.user_id === user.id && (
+                                <div className="absolute top-2 right-2">
+                                    <ProjectDropDown uuid={project.uuid} project={project}/>
+                                </div>
+                            )}
                             <CardTitle className="text-sm hover:underline">
                                 <Link href={`/p/${project.uuid}`}>
                                     {project.name}

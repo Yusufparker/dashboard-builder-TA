@@ -6,7 +6,8 @@ export type SettingTytpe = {
     id : number;
     is_api_enabled : number,
     project_entity_id : number;
-    endpoint : string
+    endpoint : string;
+    api_key ?: string;
 }
 
 

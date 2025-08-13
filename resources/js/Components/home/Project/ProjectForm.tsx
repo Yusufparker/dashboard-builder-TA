@@ -1,7 +1,7 @@
-import { z } from 'zod';
-import {useForm} from 'react-hook-form';
+import { z } from "zod";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ProjectFormSchema } from '@/lib/zod';
+import { ProjectFormSchema } from "@/lib/zod";
 import { Button } from "@/Components/ui/button";
 import {
     Form,
@@ -12,15 +12,29 @@ import {
     FormMessage,
 } from "@/Components/ui/form";
 import { Input } from "@/Components/ui/input";
-import { useCreateProject } from '@/stores/projectStore';
-
+import { useCreateProject, useUpdateProject } from "@/stores/projectStore";
+import { useEffect } from "react";
 
 type ProjectSchema = z.infer<typeof ProjectFormSchema>;
 
+type ProjectFormProps = {
+    project?: {
+        uuid: string;
+        name: string;
+        description: string;
+    };
+    onSuccess?: () => void;
+    isEdit?: boolean;
+};
 
+const ProjectForm = ({
+    project,
+    onSuccess,
+    isEdit = false,
+}: ProjectFormProps) => {
+    const { createProject, isLoading: creating } = useCreateProject();
+    const { updateProject, isUpdating } = useUpdateProject();
 
-const ProjectForm = () => {
-    const { createProject, isLoading, isError } = useCreateProject();
     const form = useForm<ProjectSchema>({
         resolver: zodResolver(ProjectFormSchema),
         defaultValues: {
@@ -29,13 +43,28 @@ const ProjectForm = () => {
         },
     });
 
+    useEffect(() => {
+        if (isEdit && project) {
+            form.reset({
+                name: project.name,
+                description: project.description,
+            });
+        }
+    }, [isEdit, project, form]);
+
     const onSubmit = async (data: ProjectSchema) => {
-        await createProject(data);
-    }
+        if (isEdit && project) {
+            await updateProject(project.uuid, data, onSuccess);
+        } else {
+            await createProject(data, onSuccess);
+        }
+    };
+
+    const busy = creating || isUpdating;
 
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <FormField
                     control={form.control}
                     name="name"
@@ -62,19 +91,14 @@ const ProjectForm = () => {
                         </FormItem>
                     )}
                 />
-                <div className='text-end'>
-                    <Button 
-                        type="submit" 
-                        size="sm"
-                        disabled={isLoading}
-                    >
-                        Save
+                <div className="text-end">
+                    <Button type="submit" size="sm" disabled={busy}>
+                        {busy ? "Saving..." : "Save"}
                     </Button>
-
                 </div>
             </form>
         </Form>
     );
-}
+};
 
-export default ProjectForm
+export default ProjectForm;

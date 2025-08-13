@@ -20,7 +20,6 @@ class DashboardController extends Controller
             $widgets->items = json_decode($widgets->items, true);
         }
 
-
         return Inertia::render('Dashboard',[
             'widgets' => $widgets ? $widgets->items : null
         ]);

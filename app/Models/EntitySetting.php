@@ -10,5 +10,6 @@ class EntitySetting extends Model
         'project_entity_id',
         'endpoint',
         'is_api_enabled',
+        'api_key',
     ];
 }
