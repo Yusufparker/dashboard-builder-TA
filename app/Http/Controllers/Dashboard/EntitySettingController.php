@@ -24,32 +24,33 @@ class EntitySettingController extends Controller
     public function store($project_uuid, $setting_id)
     {
         try {
-            //code...
             $project = Project::where('uuid', $project_uuid)->firstOrFail();
-    
+
             if (Auth::user()->id !== $project->user_id) {
                 return abort(403);
             }
-    
+
             $setting = EntitySetting::where('id', $setting_id)->firstOrFail();
-    
+
             // Validasi request
             request()->validate([
                 'is_api_enabled' => ['required', 'boolean'],
                 'endpoint' => [
                     'required',
                     'string',
-                    'unique:entity_settings,endpoint,' . $setting->id 
+                    'unique:entity_settings,endpoint,' . $setting->id
                 ],
                 'api_key' => ['required', 'string'],
+                'allowed_domains' => ['nullable', 'string'], // bisa kosong tapi kalau ada harus string
             ]);
-    
+
             $setting->update([
                 'is_api_enabled' => request('is_api_enabled'),
                 'endpoint' => request('endpoint'),
                 'api_key' => request('api_key'),
+                'allowed_domains' => request('allowed_domains'), // simpan domain yang dipisah koma
             ]);
-    
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'Entity Setting Updated Successfully!'
@@ -61,5 +62,4 @@ class EntitySettingController extends Controller
             ]);
         }
     }
-
 }

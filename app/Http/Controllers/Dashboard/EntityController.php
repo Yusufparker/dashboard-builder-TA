@@ -414,7 +414,7 @@ class EntityController extends Controller
     {
         $setting = EntitySetting::where('endpoint', $endpoint)->firstOrFail();
 
-        // check is API enabled
+        // ✅ 1. Cek apakah API aktif
         if (!$setting->is_api_enabled) {
             return response()->json([
                 'status' => 'failed',
@@ -422,10 +422,37 @@ class EntityController extends Controller
             ], 403);
         }
 
-        // get API Key from request header
-        $requestApiKey = request()->header('X-API-KEY');
+        // ✅ 2. Ambil allowed domains dari DB
+        $allowedDomains = array_map('trim', explode(',', $setting->allowed_domains));
 
-        // api key validation
+        // ✅ 3. Cek domain (Origin / Referer)
+        $origin = request()->header('Origin') ?? request()->header('Referer');
+        if ($origin && !empty($allowedDomains)) {
+            $isAllowed = false;
+            $originHost = parse_url($origin, PHP_URL_HOST);
+
+            foreach ($allowedDomains as $domain) {
+                // Hapus protokol & slash kalau ada
+                $domain = preg_replace('#^https?://#', '', rtrim($domain, '/'));
+
+                // Cocokkan host (case-insensitive)
+                if (strcasecmp($originHost, $domain) === 0) {
+                    $isAllowed = true;
+                    break;
+                }
+            }
+
+            if (!$isAllowed) {
+                return response()->json([
+                    'status' => 'failed',
+                    'message' => 'Unauthorized - Domain not allowed'
+                ], 403);
+            }
+        }
+
+
+        // ✅ 4. Cek API Key
+        $requestApiKey = request()->header('X-API-KEY');
         if (!$requestApiKey || $requestApiKey !== $setting->api_key) {
             return response()->json([
                 'status' => 'failed',
@@ -433,7 +460,7 @@ class EntityController extends Controller
             ], 401);
         }
 
-        // get entity detail and values
+        // ✅ 5. Ambil data entity + values
         $limit = request('limit', 5);
         $entity_detail = ProjectEntity::where('id', $setting->project_entity_id)
             ->with(['fields', 'setting'])
@@ -454,17 +481,20 @@ class EntityController extends Controller
             foreach ($item->detailValues as $detail) {
                 $field = $detail->field;
                 if ($field) {
-                    $fields[$field->title] = $field->type->name == 'Boolean' ? (bool) $detail->value : $detail->value;
+                    $fields[$field->title] = $field->type->name == 'Boolean'
+                        ? (bool) $detail->value
+                        : $detail->value;
                 }
             }
 
             $fields['created_at'] = $item->created_at;
-
             return $fields;
         });
 
         return response()->json($formatted_values);
     }
+
+
 
     public function deleteValue($id)
     {

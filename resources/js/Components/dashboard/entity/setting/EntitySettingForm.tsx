@@ -1,37 +1,47 @@
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { useState } from "react";
 import { Checkbox } from "@/Components/ui/checkbox";
 import { Input } from "@/Components/ui/input";
 import { Label } from "@/Components/ui/label";
 import { SettingTytpe } from "@/Pages/Entities/Setting/Setting";
-import { Clipboard } from "lucide-react";
+import { Clipboard, RefreshCcw, Plus, Trash } from "lucide-react";
 import { Button } from "@/Components/ui/button";
 import axios from "axios";
 import { usePage } from "@inertiajs/react";
 import toast from "react-hot-toast";
-import { RefreshCcw } from "lucide-react";
 
 type DataPostType = {
     endpoint: string;
     is_api_enabled: boolean;
     api_key?: string;
+    allowed_domains: { value: string }[]; // array untuk multiple input
 };
 
 const EntitySettingForm = ({ setting }: { setting: SettingTytpe }) => {
     const project_uuid = usePage().props.current_project.uuid;
 
-    const { register, handleSubmit, watch, setValue } = useForm({
-        defaultValues: {
-            is_api_enabled: Boolean(setting.is_api_enabled),
-            endpoint: setting.endpoint,
-            api_key: setting.api_key,
-        },
+    const { register, handleSubmit, watch, setValue, control } =
+        useForm<DataPostType>({
+            defaultValues: {
+                is_api_enabled: Boolean(setting.is_api_enabled),
+                endpoint: setting.endpoint,
+                api_key: setting.api_key,
+                allowed_domains: (setting.allowed_domains || "")
+                    .split(",")
+                    .filter(Boolean)
+                    .map((d) => ({ value: d.trim() })),
+            },
+        });
+
+    const { fields, append, remove } = useFieldArray({
+        control,
+        name: "allowed_domains",
     });
 
     const isApiEnabled = watch("is_api_enabled");
     const baseUrl = "https://dashbuild.berkabarindonesia.com/api/";
-    const [copied, setCopied] = useState<boolean>(false);
-    const [loading, setLoading] = useState<boolean>(false);
+    const [copied, setCopied] = useState(false);
+    const [loading, setLoading] = useState(false);
 
     const copyToClipboard = () => {
         const fullUrl = `${baseUrl}${watch("endpoint")}`;
@@ -40,9 +50,7 @@ const EntitySettingForm = ({ setting }: { setting: SettingTytpe }) => {
         setTimeout(() => setCopied(false), 2000);
     };
 
-    // Alternative API Key Generators
     const generateApiKey = () => {
-        // Option 1: Random alphanumeric string (32 characters)
         const generateAlphanumeric = (length = 32) => {
             const chars =
                 "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -54,69 +62,39 @@ const EntitySettingForm = ({ setting }: { setting: SettingTytpe }) => {
             }
             return result;
         };
-
-        // Option 2: Base64 random string
-        const generateBase64 = (length = 24) => {
-            const array = new Uint8Array(length);
-            crypto.getRandomValues(array);
-            return btoa(String.fromCharCode(...array))
-                .replace(/\+/g, "-")
-                .replace(/\//g, "_")
-                .replace(/=/g, "");
-        };
-
-        // Option 3: Hex string
-        const generateHex = (length = 32) => {
-            const array = new Uint8Array(length / 2);
-            crypto.getRandomValues(array);
-            return Array.from(array, (byte) =>
-                byte.toString(16).padStart(2, "0")
-            ).join("");
-        };
-
-        // Option 4: JWT-like format (header.payload.signature simulation)
-        const generateJWTLike = () => {
-            const header = generateBase64(8);
-            const payload = generateBase64(16);
-            const signature = generateBase64(12);
-            return `${header}.${payload}.${signature}`;
-        };
-
-        // Option 5: API Key with prefix
-        const generateWithPrefix = (prefix = "ak_") => {
-            return prefix + generateAlphanumeric(28);
-        };
-
-        // Option 6: Timestamp + Random
-        const generateTimestampBased = () => {
-            const timestamp = Date.now().toString(36);
-            const random = generateAlphanumeric(16);
-            return `${timestamp}_${random}`;
-        };
-
-        // Choose your preferred method here:
-        // return generateAlphanumeric(32);     // Option 1: Simple alphanumeric
-        // return generateBase64(24);           // Option 2: Base64
-        // return generateHex(32);              // Option 3: Hex
-        // return generateJWTLike();            // Option 4: JWT-like
-        return generateWithPrefix("ak_"); // Option 5: With prefix (recommended)
-        // return generateTimestampBased();     // Option 6: Timestamp based
+        return "ak_" + generateAlphanumeric(28);
     };
 
     const onSubmit = async (data: DataPostType) => {
-        await saveSetting(data);
+        // Konversi array domains menjadi string yang dipisah koma
+        const domainString = data.allowed_domains
+            .map((d) => d.value.trim())
+            .filter(Boolean) // hilangkan yang kosong
+            .join(",");
+
+        // Debug log untuk memastikan data yang dikirim
+        console.log("Data yang akan dikirim:", {
+            is_api_enabled: data.is_api_enabled,
+            endpoint: data.endpoint,
+            api_key: data.api_key,
+            allowed_domains: domainString,
+        });
+
+        // Kirim data ke backend
+        await saveSetting({
+            is_api_enabled: data.is_api_enabled,
+            endpoint: data.endpoint,
+            api_key: data.api_key,
+            allowed_domains: domainString || "", // pastikan tidak undefined
+        });
     };
 
-    const saveSetting = async (data: DataPostType) => {
+    const saveSetting = async (data: any) => {
         try {
             setLoading(true);
             const response = await axios.post(
                 `/p/${project_uuid}/entities/setting/store/${setting.id}`,
-                {
-                    is_api_enabled: data.is_api_enabled,
-                    endpoint: data.endpoint,
-                    api_key: data.api_key || "",
-                }
+                data
             );
             if (response.data.status == "success") {
                 toast.success(response.data.message);
@@ -124,9 +102,10 @@ const EntitySettingForm = ({ setting }: { setting: SettingTytpe }) => {
             } else {
                 toast.error(response.data.message);
             }
-            setLoading(false);
         } catch (error) {
             toast.error("Failed");
+            console.error("Error saving setting:", error);
+        } finally {
             setLoading(false);
         }
     };
@@ -147,7 +126,7 @@ const EntitySettingForm = ({ setting }: { setting: SettingTytpe }) => {
                 <div className="grid gap-1.5 leading-none">
                     <label
                         htmlFor="is_api_enabled"
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        className="text-sm font-medium"
                     >
                         Enable API
                     </label>
@@ -169,7 +148,8 @@ const EntitySettingForm = ({ setting }: { setting: SettingTytpe }) => {
                     <button
                         type="button"
                         onClick={copyToClipboard}
-                        className="p-1 text-gray-500 hover:text-gray-700"
+                        disabled={!isApiEnabled}
+                        className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50"
                     >
                         <Clipboard className="w-5 h-5" />
                     </button>
@@ -178,34 +158,78 @@ const EntitySettingForm = ({ setting }: { setting: SettingTytpe }) => {
                     )}
                 </div>
             </div>
+
             {isApiEnabled && (
-                <div>
-                    <Label>API Key</Label>
-                    <div className="flex items-center space-x-2 text-sm">
-                        <Input
-                            {...register("api_key")}
-                            disabled={true}
-                            readOnly={true}
-                            className="bg-gray-100 flex-1 text-sm cursor-not-allowed"
-                            placeholder="Click generate to create API key"
-                        />
-                        <button
-                            type="button"
-                            onClick={() => {
-                                const apiKey = generateApiKey();
-                                setValue("api_key", apiKey);
-                            }}
-                            className="flex items-center space-x-1 p-1 text-gray-500 hover:text-gray-700"
-                        >
-                            <RefreshCcw className="w-4 h-4" />
-                            <span className="text-sm">Generate</span>
-                        </button>
+                <>
+                    <div>
+                        <Label>API Key</Label>
+                        <div className="flex items-center space-x-2 text-sm">
+                            <Input
+                                {...register("api_key")}
+                                disabled
+                                readOnly
+                                className="bg-gray-100 flex-1 text-sm"
+                                placeholder="Click generate to create API key"
+                            />
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setValue("api_key", generateApiKey())
+                                }
+                                className="flex items-center space-x-1 p-1 text-gray-500 hover:text-gray-700"
+                            >
+                                <RefreshCcw className="w-4 h-4" />
+                                <span className="text-sm">Generate</span>
+                            </button>
+                        </div>
                     </div>
-                </div>
+
+                    <div>
+                        <Label>Allowed Domains</Label>
+                        <p className="text-sm text-muted-foreground mb-2">
+                            Add domains that are allowed to access this API
+                            endpoint
+                        </p>
+                        {fields.map((field, index) => (
+                            <div key={field.id} className="flex space-x-2 mb-2">
+                                <Input
+                                    {...register(
+                                        `allowed_domains.${index}.value` as const
+                                    )}
+                                    placeholder="example.com"
+                                    className="flex-1"
+                                />
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    size="icon"
+                                    onClick={() => remove(index)}
+                                >
+                                    <Trash className="w-4 h-4" />
+                                </Button>
+                            </div>
+                        ))}
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => append({ value: "" })}
+                        >
+                            <Plus className="w-4 h-4 mr-1" /> Add Domain
+                        </Button>
+
+                        {fields.length === 0 && (
+                            <p className="text-sm text-gray-400 mt-2">
+                                No domains added. Click "Add Domain" to allow
+                                specific domains.
+                            </p>
+                        )}
+                    </div>
+                </>
             )}
 
             <Button type="submit" size="sm" disabled={loading}>
-                Save Settings
+                {loading ? "Saving..." : "Save Settings"}
             </Button>
         </form>
     );

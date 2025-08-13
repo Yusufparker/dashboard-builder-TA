@@ -11,5 +11,6 @@ class EntitySetting extends Model
         'endpoint',
         'is_api_enabled',
         'api_key',
+        'allowed_domains',
     ];
 }

@@ -8,6 +8,7 @@ export type SettingTytpe = {
     project_entity_id : number;
     endpoint : string;
     api_key ?: string;
+    allowed_domains? : string;
 }
 
 
