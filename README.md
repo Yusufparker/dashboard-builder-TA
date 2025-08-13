@@ -1,7 +1,7 @@
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-    <img src="https://xokfyywqduhtltwyclph.supabase.co/storage/v1/object/public/yusufparker/yusuf/DALL_E_2025-01-24_20.59.34_-_A_modern_and_sleek_logo_design_for_a_dashboard_builder_application_called__DashBuild__or__DB_._The_logo_should_feature_only_the_icon_and_text_without_-removebg-preview.png" alt="Logo" style="margin-bottom : -40px" width="80" height="80">
+    <img src="https://raw.githubusercontent.com/Yusufparker/dashboard-builder-TA/refs/heads/main/public/img/icon/icon%20dashbuild.png" alt="Logo" style="margin-bottom : -40px" width="80" height="80">
 
   <h3 align="center">Dashboard Builder</h3>
 </div>
