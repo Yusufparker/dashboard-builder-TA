@@ -29,7 +29,7 @@ const EntitySettingForm = ({ setting }: { setting: SettingTytpe }) => {
     });
 
     const isApiEnabled = watch("is_api_enabled");
-    const baseUrl = "https://dashbuild.berkabarindonesia.com/";
+    const baseUrl = "https://dashbuild.berkabarindonesia.com/api/";
     const [copied, setCopied] = useState<boolean>(false);
     const [loading, setLoading] = useState<boolean>(false);
 
