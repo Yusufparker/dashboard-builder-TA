@@ -14,6 +14,7 @@ class EntityField extends Model
         'title',
         'type_id',
         'is_required',
+        'options',
         'is_readonly',
         'default_value',
     ];

@@ -38,6 +38,7 @@ export type FieldType = {
     isRequired: boolean;
     defaultValue?: string;
     isReadOnly?: boolean;
+    options: string[]; 
 };
 
 const EntityEditor = () => {
@@ -60,6 +61,7 @@ const EntityEditor = () => {
         slug: "",
         type_id: null,
         isRequired: false,
+        options: []
     });
     
     useEffect(() => {
@@ -78,6 +80,7 @@ const EntityEditor = () => {
             slug: "",
             type_id: null,
             isRequired: false,
+            options: []
         });
     };
 

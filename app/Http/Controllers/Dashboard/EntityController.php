@@ -67,6 +67,9 @@ class EntityController extends Controller
                     'type_id' => $field['type_id'],
                     'is_required' => $field['isRequired'],
                     // Handle advanced fields
+                    'options' => isset($field['options'])
+                        ? implode(',', $field['options'])
+                        : null,
                     'default_value' => $field['defaultValue'] ?? null,
                     'is_readonly' => $field['isReadOnly'] ?? false
                 ]);
@@ -414,7 +417,7 @@ class EntityController extends Controller
     {
         $setting = EntitySetting::where('endpoint', $endpoint)->firstOrFail();
 
-        // ✅ 1. Cek apakah API aktif
+        // check is api enabled
         if (!$setting->is_api_enabled) {
             return response()->json([
                 'status' => 'failed',
@@ -422,10 +425,10 @@ class EntityController extends Controller
             ], 403);
         }
 
-        // ✅ 2. Ambil allowed domains dari DB
+        // allowed domains
         $allowedDomains = array_map('trim', explode(',', $setting->allowed_domains));
 
-        // ✅ 3. Cek domain (Origin / Referer)
+        // check allowrd domains
         $origin = request()->header('Origin') ?? request()->header('Referer');
         if ($origin && !empty($allowedDomains)) {
             $isAllowed = false;
@@ -451,7 +454,7 @@ class EntityController extends Controller
         }
 
 
-        // ✅ 4. Cek API Key
+        //Cek API Key
         $requestApiKey = request()->header('X-API-KEY');
         if (!$requestApiKey || $requestApiKey !== $setting->api_key) {
             return response()->json([
@@ -460,7 +463,7 @@ class EntityController extends Controller
             ], 401);
         }
 
-        // ✅ 5. Ambil data entity + values
+
         $limit = request('limit', 5);
         $entity_detail = ProjectEntity::where('id', $setting->project_entity_id)
             ->with(['fields', 'setting'])

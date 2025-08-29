@@ -13,6 +13,7 @@ import { Button } from "@/Components/ui/button";
 import axios from "axios";
 import { usePage } from "@inertiajs/react";
 import toast from "react-hot-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/Components/ui/select";
 
 registerPlugin(FilePondPluginImageExifOrientation, FilePondPluginImagePreview);
 
@@ -322,6 +323,40 @@ const renderInput = (
                                     {capitalizeWords(field.title)}
                                 </Label>
                             </div>
+                        );
+                    }
+                    case "Dropdown": {
+                        // Ambil options dari field (string -> array)
+                        const options = field.options
+                            ? field.options.split(",").map((opt) => opt.trim())
+                            : [];
+
+                        return (
+                            <Select
+                                value={value || field.default_value || ""}
+                                onValueChange={(selectedValue) =>
+                                    handleInputChange(
+                                        fieldId,
+                                        selectedValue,
+                                        field.type.name
+                                    )
+                                }
+                                disabled={field.is_readonly && !isOwner}
+                            >
+                                <SelectTrigger
+                                    id={`field-${field.id}`}
+                                    className="w-full"
+                                >
+                                    <SelectValue placeholder="Select an option" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {options.map((opt, idx) => (
+                                        <SelectItem key={idx} value={opt}>
+                                            {opt}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         );
                     }
 

@@ -32,6 +32,11 @@ const FieldModal: React.FC<PropsType> = ({
     handleAddField,
     fieldTypes,
 }) => {
+    const selectedFieldType = fieldTypes.find(
+        (ft) => ft.id === newField.type_id
+    );
+    const fieldTypeName = selectedFieldType?.name?.toLowerCase() || "";
+    
     return (
         <>
             <DialogHeader>
@@ -83,6 +88,67 @@ const FieldModal: React.FC<PropsType> = ({
                         </SelectContent>
                     </Select>
                 </div>
+
+                {fieldTypeName === "dropdown" && (
+                    <div>
+                        <Label>Dropdown Options</Label>
+                        <div className="mt-2 max-h-40 overflow-y-auto border rounded-lg p-2 space-y-2">
+                            {newField.options?.map((option, index) => (
+                                <div
+                                    key={index}
+                                    className="flex items-center gap-2"
+                                >
+                                    <Input
+                                        placeholder={`Option ${index + 1}`}
+                                        value={option}
+                                        onChange={(e) => {
+                                            const updatedOptions = [
+                                                ...newField.options,
+                                            ];
+                                            updatedOptions[index] =
+                                                e.target.value;
+                                            setNewField((prevField) => ({
+                                                ...prevField,
+                                                options: updatedOptions,
+                                            }));
+                                        }}
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="destructive"
+                                        size="sm"
+                                        onClick={() => {
+                                            const updatedOptions =
+                                                newField?.options.filter(
+                                                    (_, i) => i !== index
+                                                );
+                                            setNewField((prevField) => ({
+                                                ...prevField,
+                                                options: updatedOptions,
+                                            }));
+                                        }}
+                                    >
+                                        Remove
+                                    </Button>
+                                </div>
+                            ))}
+                        </div>
+
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            className="mt-3 w-full"
+                            onClick={() =>
+                                setNewField((prevField) => ({
+                                    ...prevField,
+                                    options: [...(prevField.options || []), ""],
+                                }))
+                            }
+                        >
+                            + Add Option
+                        </Button>
+                    </div>
+                )}
 
                 <div className="flex items-center space-x-2">
                     <Switch

@@ -33,5 +33,10 @@
         "name" : "Rich Text (Blocks)",
         "icon"  : "/img/fields icon/ctb_richtextblocks.svg",
         "description": "The new  JSON-based rich text editor"
+    },
+    {
+        "name" : "Dropdown",
+        "icon"  : "/img/fields icon/ctb_richtextblocks.svg",
+        "description": "A dropdown field with predefined options"
     }
 ]

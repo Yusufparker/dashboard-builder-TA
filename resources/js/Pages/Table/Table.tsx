@@ -36,7 +36,8 @@ export type FieldsType = {
     created_at : Date;
     default_value : string | null;
     is_readonly : boolean;
-    type : Type
+    options : string;
+    type : Type;
 }
 
 type Type = {
